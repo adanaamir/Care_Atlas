@@ -90,7 +90,7 @@ _LANDING_PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Sehat-e-Aam · API</title>
+<title>CareAtlas Nigeria · API</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root { color-scheme: light dark; }
@@ -111,8 +111,8 @@ _LANDING_PAGE = """<!doctype html>
 </style>
 </head>
 <body>
-  <h1>Sehat-e-Aam · Healthcare Intelligence API</h1>
-  <p class="tag">FastAPI mirror, public CORS, LLM via Databricks Foundation Model API.</p>
+  <h1>CareAtlas Nigeria · Healthcare Intelligence API</h1>
+  <p class="tag">Validated emergency routing, AI trust scoring, and geospatial desert detection.</p>
 
   <p>
     <a href="/docs"><strong>Open Swagger UI &rarr;</strong></a>
@@ -142,7 +142,7 @@ _LANDING_PAGE = """<!doctype html>
 }).then(r =&gt; r.json())</pre>
 
   <footer>
-    Source: <a href="https://github.com/SawaizAslam/sehat-e-aam">github.com/SawaizAslam/sehat-e-aam</a>
+    Built for the Healthcare Accessibility Hackathon
   </footer>
 </body>
 </html>
