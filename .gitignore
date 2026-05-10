@@ -1,0 +1,51 @@
+# Environments
+.venv/
+venv/
+env/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.local
+
+# Data & artifacts (large) — never commit these. Datasets are uploaded to
+# Databricks Volumes manually (see databricks/DEPLOY.md step 2).
+*.csv
+*.xlsx
+*.parquet
+*.faiss
+data/*
+lakehouse/*
+vector_index/*
+mlruns/
+mlflow.db
+
+# Allow the small (~600KB) Silver/Gold parquets that ship with the
+# Hugging Face Space build context (see huggingface/space_app.py).
+!demo/facilities_silver.parquet
+!demo/facilities_gold.parquet
+
+# App deploy staging (built by databricks/scripts/stage_app.ps1)
+databricks/_app_deploy/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep dir markers (re-include .gitkeep so the data/lakehouse/vector_index
+# directories survive a fresh clone).
+!data/.gitkeep
+!lakehouse/.gitkeep
+!vector_index/.gitkeep
+!**/.gitkeep
