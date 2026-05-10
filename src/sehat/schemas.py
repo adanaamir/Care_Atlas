@@ -10,6 +10,9 @@ Fixes applied vs the original guide:
   ``farmacy`` typo normalised to ``PHARMACY``.
 * ``FacilityExtraction.parse_relaxed`` accepts the LLM's raw JSON, fills
   defaults for missing keys, and coerces stringified ints (``"5"``) to int.
+* **CareAtlas Nigeria additions** (2025):
+  - ``NeedType`` enum for emergency routing (EMERGENCY, ICU, MATERNITY, …).
+  - ``NearestRequest`` / ``NearestFacilityResult`` for ``POST /api/nearest``.
 """
 
 from __future__ import annotations
@@ -84,6 +87,18 @@ class Severity(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
+
+class NeedType(str, Enum):
+    """Medical need categories for the CareAtlas emergency routing endpoint."""
+
+    EMERGENCY = "emergency"
+    ICU = "icu"
+    MATERNITY = "maternity"
+    SURGERY = "surgery"
+    DIALYSIS = "dialysis"
+    PEDIATRIC = "pediatric"
+    GENERAL = "general"
 
 
 # ---------------------------------------------------------------------------
@@ -323,11 +338,66 @@ class ReasoningResponse(_StrictModel):
     uncertainty_note: str = ""
 
 
+# ---------------------------------------------------------------------------
+# CareAtlas Nigeria — /api/nearest request + response models
+# ---------------------------------------------------------------------------
+
+
+class NearestRequest(BaseModel):
+    """Request body for POST /api/nearest."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    lat: float = Field(..., ge=-90.0, le=90.0, description="User GPS latitude")
+    lon: float = Field(..., ge=-180.0, le=180.0, description="User GPS longitude")
+    need_type: NeedType = Field(default=NeedType.GENERAL, description="Medical need category")
+    top_k: int = Field(default=5, ge=1, le=20)
+    radius_km: float = Field(default=100.0, ge=1.0, le=500.0)
+    min_trust_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    functional_only: bool = Field(default=False)
+
+
+class NearestFacilityResult(BaseModel):
+    """A single ranked result from /api/nearest."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    rank: int
+    facility_id: str
+    facility_name: str
+    composite_score: float = Field(ge=0.0, le=1.0)
+    distance_km: float = Field(ge=0.0)
+    estimated_travel_min: int = Field(ge=0)
+    trust_score: float = Field(ge=0.0, le=1.0)
+    trust_grade: str  # A / B / C / D / F
+    cap_score: float = Field(ge=0.0, le=1.0)
+    matched_capabilities: list[str] = Field(default_factory=list)
+    facility_type: str = ""
+    category: str = ""  # Primary / Secondary / Tertiary
+    functional_status: str = ""
+    facility_meta: dict = Field(default_factory=dict)
+
+
+class NearestResponse(BaseModel):
+    """Response envelope for POST /api/nearest."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    need_type: str
+    user_location: dict  # {lat, lon}
+    radius_km: float
+    total_found: int
+    results: list[NearestFacilityResult] = Field(default_factory=list)
+    fallback_used: bool = False
+    message: str = ""
+
+
 __all__ = [
     "AvailabilityStatus",
     "StaffType",
     "FunctionalStatus",
     "FacilityType",
+    "NeedType",
     "Severity",
     "ICUProfile",
     "VentilatorProfile",
@@ -342,4 +412,7 @@ __all__ = [
     "MedicalDesertReport",
     "RankedResult",
     "ReasoningResponse",
+    "NearestRequest",
+    "NearestFacilityResult",
+    "NearestResponse",
 ]

@@ -1,46 +1,27 @@
 ---
-title: Sehat-e-Aam
-emoji: 🩺
-colorFrom: indigo
+title: CareAtlas Nigeria
+emoji: 🇳🇬
+colorFrom: green
 colorTo: blue
 sdk: docker
-app_port: 7860
+app_port: 8000
 pinned: false
 license: mit
-short_description: Public FastAPI mirror of the Sehat-e-Aam API.
+short_description: Emergency healthcare routing and intelligence API for Nigeria.
 ---
 
-<!--
-  The YAML block above is metadata read by Hugging Face Spaces (Docker SDK)
-  to render the Space card. Hugging Face requires the `emoji` field to be a
-  single Unicode pictograph. It is metadata only and never rendered in the
-  body of this README. The body intentionally contains no emoji or unicode
-  decoration so it stays accessible and easy to read in plaintext.
--->
+# CareAtlas Nigeria
 
-# Sehat-e-Aam
+**An emergency-first healthcare routing system for Nigeria.** Evolved from the Sehat-e-Aam intelligence platform, CareAtlas is a mobile-first platform designed to instantly route users to the nearest trusted and capable healthcare facility based on their exact GPS location and specific medical need (ICU, dialysis, emergency, maternity, etc.).
 
-**An agentic healthcare-intelligence system for India.** It ingests a
-public dataset of ~10,000 healthcare facilities, uses an LLM to extract
-structured medical capabilities (ICU, dialysis, ventilators, surgical
-specialties, 24/7 emergency, etc.), assigns each facility a trust score,
-runs a self-correction loop on low-trust records, builds a FAISS vector
-index over the result, and exposes a reasoning + medical-desert API. A
-public React frontend lets a stressed end-user describe what care they
-need in plain English (or Hindi/Urdu by voice) and get back a ranked,
-explained list of facilities with maps, helplines, and a trust
-breakdown.
+It ingests the complete Nigerian Health Facility Registry (~46,000 facilities), normalises categories, applies heuristic and LLM-based capability extraction, assigns trust scores, and powers a geospatial routing API (`/api/nearest`) that returns results in under 200ms.
 
-The project is a Python re-implementation of the original
-`AGENTIC_HEALTHCARE_BACKEND_GUIDE.md`, with every reproducibility-
-breaking bug fixed (see the dedicated section below) and the
-Databricks-only paid dependencies (Mosaic AI Vector Search, Delta) swapped
-for portable equivalents (FAISS, Parquet + DuckDB) so the same code runs
-on a laptop and on Databricks Free Edition unchanged.
+This backend powers the CareAtlas iOS/Android React Native application.
 
 ---
 
 ## Live demo
+
 
 | Surface         | URL                                                          |
 |-----------------|--------------------------------------------------------------|
@@ -83,21 +64,21 @@ flowchart TD
     FALL["Heuristic fallback ranker<br/>(when LLM unreachable)"]
   end
 
-  subgraph UI["Frontend (Vite + React + shadcn/ui)"]
-    APP["pages/SearchPage"]
+  subgraph UI["Frontend (React Native / Expo)"]
+    APP["app/index.tsx (Emergency Button)"]
+    DESERT["app/deserts.tsx (Medical Desert Intelligence)"]
     ADAPT["lib/api.ts adapter"]
   end
 
-  CSV --> INGEST --> EXTRACT --> TRUST --> CORRECT
-  CORRECT --> INDEX
-  CORRECT --> DESERTS
-
+  CSV --> INGEST --> EXTRACT --> TRUST --> INDEX
   INDEX --> Q
   TRUST --> Q
   TRUST --> F
   DESERTS --> D
 
   Q --> DBRX
+  D --> DESERT
+
   Q -.->|on 4xx/5xx/timeout| FALL
   DBRX --> Q
 

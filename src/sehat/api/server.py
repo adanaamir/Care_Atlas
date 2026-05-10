@@ -13,17 +13,20 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from ..config import get_settings
+from ..pipeline.geo_ranking import NeedType, rank_by_proximity
 from ..pipeline.reasoning import query_facilities
+from ..schemas import NearestRequest, NearestResponse
 from ..storage import duck, parquet_exists, read_parquet
 
 LOGGER = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Sehat-e-Aam Healthcare Intelligence API",
+    title="CareAtlas Nigeria — Healthcare Emergency Routing API",
     description=(
-        "Search, evaluate trust, and analyse medical deserts across Indian healthcare facilities."
+        "One-tap emergency routing to the nearest trusted Nigerian healthcare facility. "
+        "Geospatial ranking, AI trust scoring, and medical desert detection."
     ),
-    version="0.1.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -49,7 +52,7 @@ class QueryRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Landing page HTML
 # ---------------------------------------------------------------------------
 
 
@@ -174,6 +177,81 @@ def health() -> dict[str, Any]:
         "llm_model": s.llm_model,
         "embedding_backend": s.embedding_backend,
     }
+
+
+@app.post("/api/nearest", summary="Emergency GPS routing — nearest trusted facility")
+def api_nearest_facility(req: NearestRequest) -> dict:
+    """Core CareAtlas Nigeria endpoint.
+
+    Accepts user GPS coordinates + medical need type and returns the nearest
+    trusted healthcare facilities ranked by a composite score:
+
+        score = 0.35 * distance_decay + 0.35 * trust_score + 0.30 * capability_match
+
+    No LLM call is made — this is a pure deterministic ranking that returns
+    results in < 200 ms and works even when the LLM backend is unavailable.
+    """
+    s = get_settings()
+    if not parquet_exists(s.gold_path):
+        raise HTTPException(
+            503,
+            "Gold table not built yet. Run the Nigeria pipeline first: "
+            "python scripts/load_nigeria.py && sehat pipeline",
+        )
+
+    try:
+        gold_df = read_parquet(s.gold_path)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.error("Failed to read gold parquet: %s", exc)
+        raise HTTPException(503, f"Failed to read gold table: {exc}") from exc
+
+    need = NeedType(req.need_type) if isinstance(req.need_type, str) else req.need_type
+
+    results = rank_by_proximity(
+        gold_df=gold_df,
+        user_lat=req.lat,
+        user_lon=req.lon,
+        need_type=need,
+        top_k=req.top_k,
+        radius_km=req.radius_km,
+        min_trust_score=req.min_trust_score,
+        functional_only=req.functional_only,
+    )
+
+    fallback_used = False
+    message = ""
+    if not results:
+        # Retry without functional filter and with wider radius
+        LOGGER.warning(
+            "No results within %.1f km for need=%s; retrying without filters.",
+            req.radius_km,
+            need.value,
+        )
+        results = rank_by_proximity(
+            gold_df=gold_df,
+            user_lat=req.lat,
+            user_lon=req.lon,
+            need_type=NeedType.GENERAL,
+            top_k=req.top_k,
+            radius_km=req.radius_km * 2,
+            min_trust_score=0.0,
+            functional_only=False,
+        )
+        fallback_used = True
+        message = (
+            f"No {need.value} specialists found within {req.radius_km:.0f} km. "
+            "Showing nearest general facilities instead."
+        )
+
+    return NearestResponse(
+        need_type=need.value,
+        user_location={"lat": req.lat, "lon": req.lon},
+        radius_km=req.radius_km,
+        total_found=len(results),
+        results=results,
+        fallback_used=fallback_used,
+        message=message,
+    ).model_dump(mode="json")
 
 
 @app.post("/api/query")
