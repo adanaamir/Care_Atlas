@@ -22,7 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY data/ ./data/
 
+# Tell Python to look in the src directory for the 'sehat' package
+ENV PYTHONPATH=/app/src
+
 # Create a simple entry point for HuggingFace
+
 RUN echo "import uvicorn\nfrom sehat.api.server import app\n\nif __name__ == '__main__':\n    uvicorn.run(app, host='0.0.0.0', port=7860)" > hf_app.py
 
 # Expose the port HuggingFace expects
